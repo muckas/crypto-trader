@@ -12,7 +12,7 @@ polo = Poloniex(key=api_key, secret=api_sercet)
 
 def tg_call(user, text):
   url = f'http://api.callmebot.com/start.php?source=web&user={user}&text={text}&lang=en-IN-Standard-A&rpt=5'
-  requests.post(url)
+  return requests.post(url)
 
 def getChartData(pair, period, start, end):
   chart = []
@@ -55,13 +55,26 @@ def getHeikinAshi(pair, period, start, end):
           'low':low,
           'color':color
         })
-  return chart
+  return chart[1:]
+
+def mainLoop(pair, period):
+  while True:
+    now = time.time()
+    fromLastCandle = now % period
+    untilNextCandle = period - fromLastCandle
+    print(f'Waiting {untilNextCandle/60/60:.1f} hours until next candle...')
+    time.sleep(untilNextCandle + 60)
+    chart = getHeikinAshi(pair, period, now - period * 1000, now)
+    print(f'Got {len(chart)} Heikin Ashi candles from poloniex')
+    lastCandleColor = chart[-2]['color']
+    candleBeforeColor = chart[-3]['color']
+    print(f'Last completed candle is {lastCandleColor}')
+    print(f'Candle before it is {candleBeforeColor}')
+    if lastCandleColor == 'green' and candleBeforeColor == 'red':
+      print('Time to buy, calling user in tg...')
+      tg_call(tg_username, f'Time to buy {pair}')
+    else:
+      print('Nothing to do...')
 
 if __name__ == '__main__':
-  now = int(time.time())
-  pair = 'USDT_BTC'
-  period = 86400
-  start = now - (period * 365 * 5)
-  end = now
-  for candle in getHeikinAshi(pair, period, start, end):
-    print(candle)
+  mainLoop('USDT_BTC', 86400)
