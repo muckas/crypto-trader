@@ -59,10 +59,10 @@ def getHeikinAshi(pair, period, start, end):
   chart = []
   chart.append(data[0])
   for candle in data:
-    high = candle['high']
-    low = candle['low']
     open = ( chart[-1]['open'] + chart[-1]['close'] ) / 2
-    close = ( open + high + low + candle['close'] ) / 4
+    close = ( candle['open'] + candle['high'] + candle['low'] + candle['close'] ) / 4
+    high = max(candle['high'], candle['low'], open, close)
+    low = min(candle['high'], candle['low'], open, close)
     if open > close:
       color = 'red'
     else:
