@@ -81,6 +81,11 @@ def getHeikinAshi(pair, period, start, end):
   return chart
 
 def mainLoop(pair, period):
+  now = time.time()
+  chart = getHeikinAshi(pair, period, now - period * 1000, now)
+  log.debug('Last five candles:')
+  for candle in chart[-5:]:
+    log.debug(candle)
   while True:
     now = time.time()
     fromLastCandle = now % period
