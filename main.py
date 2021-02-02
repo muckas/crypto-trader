@@ -3,6 +3,26 @@ import requests
 import time
 import datetime
 from poloniex import Poloniex
+import logging
+
+log = logging.getLogger()
+log.setLevel(logging.DEBUG)
+
+filename = datetime.datetime.now().strftime('%Y-%m-%d') + '-log'
+file = logging.FileHandler(os.path.join('logs', filename))
+file.setLevel(logging.DEBUG)
+fileformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
+file.setFormatter(fileformat)
+log.addHandler(file)
+
+stream = logging.StreamHandler()
+stream.setLevel(logging.DEBUG)
+streamformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
+stream.setFormatter(fileformat)
+log.addHandler(stream)
+
+log.info('========================')
+log.info('Start')
 
 tg_username = os.environ['TG_USER']
 api_key = os.environ['POLO_KEY']
@@ -17,6 +37,7 @@ def tg_call(user, text):
 def getChartData(pair, period, start, end):
   chart = []
   data = polo.returnChartData(pair, period, start, end)
+  log.debug(f'Got {len(data)} candles from poloniex')
   for candle in data:
     if float(candle['open']) > float(candle['close']):
       color = 'red'
@@ -55,26 +76,31 @@ def getHeikinAshi(pair, period, start, end):
           'low':low,
           'color':color
         })
-  return chart[1:]
+  chart.pop(0)
+  log.debug(f'Converted {len(chart)} candles to Heikin Ashi')
+  return chart
 
 def mainLoop(pair, period):
   while True:
     now = time.time()
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
-    print(f'Waiting {untilNextCandle/60/60:.1f} hours until next candle...')
-    time.sleep(untilNextCandle + 60)
+    log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle + 20).strftime("%H:%M:%S")}...')
+    time.sleep(untilNextCandle + 20)
     chart = getHeikinAshi(pair, period, now - period * 1000, now)
-    print(f'Got {len(chart)} Heikin Ashi candles from poloniex')
     lastCandleColor = chart[-2]['color']
     candleBeforeColor = chart[-3]['color']
-    print(f'Last completed candle is {lastCandleColor}')
-    print(f'Candle before it is {candleBeforeColor}')
+    log.debug(chart[-3])
+    log.debug(chart[-2])
+    log.info(f'Candle pattern is {candleBeforeColor} = > {lastCandleColor}')
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
-      print('Time to buy, calling user in tg...')
+      log.info('Time to buy, calling user in tg...')
       tg_call(tg_username, f'Time to buy {pair}')
     else:
-      print('Nothing to do...')
+      log.info('Nothing to do...')
 
 if __name__ == '__main__':
-  mainLoop('USDT_BTC', 86400)
+  pair = 'USDT_BTC'
+  period = 86400
+  log.info(f'Pair: {pair}, period: {period}')
+  mainLoop(pair, period)
