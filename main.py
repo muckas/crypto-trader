@@ -52,9 +52,10 @@ def getChartData(pair, period, start, end):
           'low':float(candle['low']),
           'color':color
         })
+  log.debug(f'Last candle date: {chart[-1]["date"]}')
   return chart
 
-def getHeikinAshi(pair, period, start, end):
+def getHeikenAshi(pair, period, start, end):
   data = getChartData(pair, period, start, end)
   chart = []
   chart.append(data[0])
@@ -77,12 +78,12 @@ def getHeikinAshi(pair, period, start, end):
           'color':color
         })
   chart.pop(0)
-  log.debug(f'Converted {len(chart)} candles to Heikin Ashi')
+  log.debug(f'Converted {len(chart)} candles to Heiken Ashi')
   return chart
 
 def mainLoop(pair, period):
   now = time.time()
-  chart = getHeikinAshi(pair, period, now - period * 1000, now)
+  chart = getHeikenAshi(pair, period, now - period * 1000, now)
   log.debug('Last five candles:')
   for candle in chart[-5:]:
     log.debug(candle)
@@ -91,8 +92,8 @@ def mainLoop(pair, period):
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
     log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle + 20).strftime("%H:%M:%S")}...')
-    time.sleep(untilNextCandle + 20)
-    chart = getHeikinAshi(pair, period, now - period * 1000, now)
+    time.sleep(untilNextCandle + 120)
+    chart = getHeikenAshi(pair, period, now - period * 1000, now)
     lastCandleColor = chart[-2]['color']
     candleBeforeColor = chart[-3]['color']
     log.debug(chart[-3])
