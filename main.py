@@ -34,10 +34,18 @@ def tg_call(user, text):
   url = f'http://api.callmebot.com/start.php?source=web&user={user}&text={text}&lang=en-IN-Standard-A&rpt=5'
   return requests.post(url)
 
-def getChartData(pair, period, start, end):
+def getChartData(pair, period, start, end, lastCandleDate=None):
+  if lastCandleDate:
+    end = time.time()
+    log.debug(f'Last candle date: {lastCandleDate}, {datetime.datetime.utcfromtimestamp(lastCandleDate)}')
   chart = []
   data = polo.returnChartData(pair, period, start, end)
   log.debug(f'Got {len(data)} candles from poloniex')
+  log.debug(f'New candle date: {data[-1]["date"]}, {datetime.datetime.utcfromtimestamp(data[-1]["date"])}')
+  if lastCandleDate == data[-1]['date']:
+    log.debug('New candle is the same, retrying in 15 seconds...')
+    time.sleep(15)
+    return getChartData(pair, period, start, end, lastCandleDate)
   for candle in data:
     if float(candle['open']) > float(candle['close']):
       color = 'red'
@@ -52,11 +60,10 @@ def getChartData(pair, period, start, end):
           'low':float(candle['low']),
           'color':color
         })
-  log.debug(f'Last candle date: {chart[-1]["date"]}')
   return chart
 
-def getHeikenAshi(pair, period, start, end):
-  data = getChartData(pair, period, start, end)
+def getHeikenAshi(pair, period, start, end, lastCandleDate=None):
+  data = getChartData(pair, period, start, end, lastCandleDate)
   chart = []
   chart.append(data[0])
   for candle in data:
@@ -91,9 +98,11 @@ def mainLoop(pair, period):
     now = time.time()
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
-    log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle + 20).strftime("%H:%M:%S")}...')
-    time.sleep(untilNextCandle + 120)
-    chart = getHeikenAshi(pair, period, now - period * 1000, now)
+    log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle + 20).strftime("%H:%M:%S")} until new candle...')
+    time.sleep(untilNextCandle)
+    lastCandleDate = chart[-1]['date']
+    log.info('Getting new candle...')
+    chart = getHeikenAshi(pair, period, now - period * 1000, now, chart[-1]['date'])
     lastCandleColor = chart[-2]['color']
     candleBeforeColor = chart[-3]['color']
     log.debug(chart[-3])
@@ -107,6 +116,6 @@ def mainLoop(pair, period):
 
 if __name__ == '__main__':
   pair = 'USDT_BTC'
-  period = 86400
+  period = 300
   log.info(f'Pair: {pair}, period: {period}')
   mainLoop(pair, period)
