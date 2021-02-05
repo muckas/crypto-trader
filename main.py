@@ -94,6 +94,8 @@ def mainLoop(pair, period):
   log.debug('Last five candles:')
   for candle in chart[-5:]:
     log.debug(candle)
+  lastCandleDate = chart[-1]['date']
+  log.debug(f'Current candle date: {lastCandleDate}, {datetime.datetime.utcfromtimestamp(lastCandleDate)}')
   while True:
     now = time.time()
     fromLastCandle = now % period
@@ -111,6 +113,9 @@ def mainLoop(pair, period):
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
       log.info('Time to buy, calling user in tg...')
       tg_call(tg_username, f'Time to buy {pair}')
+    elif lastCandleColor == 'red' and candleBeforeColor == 'green':
+      log.info('Time to move stop loss, calling user in tg...')
+      tg_call(tg_username, f'Move stop loss on {pair}')
     else:
       log.info('Nothing to do...')
 
