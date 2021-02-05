@@ -4,11 +4,40 @@ import time
 import datetime
 from poloniex import Poloniex
 import logging
+import getopt
+import sys
 
+argList = sys.argv[1:]
+opts = 'h:'
+longOpts = ['help', 'pair=', 'period=', 'prod']
+# Default options
+pair = 'USDT_BTC'
+period = 300
+prod = False
+
+try:
+  args, values = getopt.getopt(argList, opts, longOpts)
+  for arg, value in args:
+    if arg in ('-h', '--help'):
+      print('--pair <pair> --period <period> --prod')
+      sys.exit(0)
+    elif arg in ('--pair'):
+      pair = str(value)
+    elif arg in ('--period'):
+      period = int(value)
+    elif arg in ('--prod'):
+      prod = True
+except getopt.error as err:
+  print(str(err))
+  sys.exit(1)
+
+# Logger setup
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
 filename = datetime.datetime.now().strftime('%Y-%m-%d') + '-log'
+if prod:
+  filename += '-prod'
 file = logging.FileHandler(os.path.join('logs', filename))
 file.setLevel(logging.DEBUG)
 fileformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
@@ -120,7 +149,5 @@ def mainLoop(pair, period):
       log.info('Nothing to do...')
 
 if __name__ == '__main__':
-  pair = 'USDT_BTC'
-  period = 300
-  log.info(f'Pair: {pair}, period: {period}')
+  log.info(f'Pair: {pair}, period: {period}, production: {prod}')
   mainLoop(pair, period)
