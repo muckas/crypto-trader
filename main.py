@@ -6,6 +6,7 @@ from poloniex import Poloniex
 import logging
 import getopt
 import sys
+import traceback
 
 argList = sys.argv[1:]
 opts = 'h:'
@@ -150,4 +151,7 @@ def mainLoop(pair, period):
 
 if __name__ == '__main__':
   log.info(f'Pair: {pair}, period: {period}, production: {prod}')
-  mainLoop(pair, period)
+  try:
+    mainLoop(pair, period)
+  except Exception as e:
+    log.error((traceback.format_exc()))
