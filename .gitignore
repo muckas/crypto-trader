@@ -1,5 +1,6 @@
 key
 secret
+/logs
 /venv
 *.swp
 *.db
