@@ -33,6 +33,13 @@ except getopt.error as err:
   sys.exit(1)
 
 # Logger setup
+
+try:
+  os.makedirs('logs')
+  print('Created logs folder')
+except FileExistsError:
+  pass
+
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
