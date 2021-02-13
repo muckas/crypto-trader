@@ -10,11 +10,12 @@ import traceback
 
 argList = sys.argv[1:]
 opts = 'h:'
-longOpts = ['help', 'pair=', 'period=', 'prod']
+longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod']
 # Default options
 pair = 'USDT_BTC'
 period = 300
 prod = False
+tg_username = None
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -28,6 +29,8 @@ try:
       period = int(value)
     elif arg in ('--prod'):
       prod = True
+    elif arg in ('--tguser'):
+      tg_username = str(value)
 except getopt.error as err:
   print(str(err))
   sys.exit(1)
@@ -61,11 +64,24 @@ log.addHandler(stream)
 log.info('========================')
 log.info('Start')
 
-tg_username = os.environ['TG_USER']
-api_key = os.environ['POLO_KEY']
-api_sercet = os.environ['POLO_SECRET']
+if tg_username:
+  log.debug(f'Using tg username from command line parameter: {tg_username}')
+else:
+  try:
+    tg_username = os.environ['TG_USER']
+    log.debug(f'Using tg username from environment variable: {tg_username}')
+  except KeyError as err:
+    log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
+    sys.exit(1)
 
-polo = Poloniex(key=api_key, secret=api_sercet)
+try:
+  api_key = os.environ['POLO_KEY']
+  api_sercet = os.environ['POLO_SECRET']
+  polo = Poloniex(key=api_key, secret=api_sercet)
+  log.info(f'Logged to Poloniex with api keys from environment variables')
+except KeyError:
+  polo = Poloniex()
+  log.info('No POLO_KEY and POLO_SECRET environment variables, using public Poloniex api only')
 
 def tg_call(user, text):
   url = f'http://api.callmebot.com/start.php?source=web&user={user}&text={text}&lang=en-IN-Standard-A&rpt=5'
@@ -157,7 +173,7 @@ def mainLoop(pair, period):
       log.info('Nothing to do...')
 
 if __name__ == '__main__':
-  log.info(f'Pair: {pair}, period: {period}, production: {prod}')
+  log.info(f'Pair: {pair}, period: {period}, tg user: {tg_username}, production: {prod}')
   try:
     mainLoop(pair, period)
   except Exception as e:
