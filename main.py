@@ -153,7 +153,7 @@ def mainLoop(pair, period):
     now = time.time()
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
-    log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle + 20).strftime("%H:%M:%S")} until new candle...')
+    log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle).strftime("%H:%M:%S")} until new candle...')
     time.sleep(untilNextCandle)
     lastCandleDate = chart[-1]['date']
     log.info('Getting new candle...')
