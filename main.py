@@ -74,10 +74,14 @@ else:
     log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
     sys.exit(1)
 
-api_key = os.environ['POLO_KEY']
-api_sercet = os.environ['POLO_SECRET']
-
-polo = Poloniex(key=api_key, secret=api_sercet)
+try:
+  api_key = os.environ['POLO_KEY']
+  api_sercet = os.environ['POLO_SECRET']
+  polo = Poloniex(key=api_key, secret=api_sercet)
+  log.info(f'Logged to Poloniex with api keys from environment variables')
+except KeyError:
+  polo = Poloniex()
+  log.info('No POLO_KEY and POLO_SECRET environment variables, using public Poloniex api only')
 
 def tg_call(user, text):
   url = f'http://api.callmebot.com/start.php?source=web&user={user}&text={text}&lang=en-IN-Standard-A&rpt=5'
