@@ -153,7 +153,7 @@ def mainLoop(pair, period):
     now = time.time()
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
-    log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle + 20).strftime("%H:%M:%S")} until new candle...')
+    log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle).strftime("%H:%M:%S")} until new candle...')
     time.sleep(untilNextCandle)
     lastCandleDate = chart[-1]['date']
     log.info('Getting new candle...')
@@ -162,6 +162,7 @@ def mainLoop(pair, period):
     candleBeforeColor = chart[-3]['color']
     log.debug(chart[-3])
     log.debug(chart[-2])
+    log.debug(chart[-1])
     log.info(f'Candle pattern is {candleBeforeColor} = > {lastCandleColor}')
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
       log.info('Time to buy, calling user in tg...')
