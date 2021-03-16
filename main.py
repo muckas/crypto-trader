@@ -162,6 +162,7 @@ def mainLoop(pair, period):
     candleBeforeColor = chart[-3]['color']
     log.debug(chart[-3])
     log.debug(chart[-2])
+    log.debug(chart[-1])
     log.info(f'Candle pattern is {candleBeforeColor} = > {lastCandleColor}')
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
       log.info('Time to buy, calling user in tg...')
