@@ -9,7 +9,7 @@ import sys
 import traceback
 
 argList = sys.argv[1:]
-opts = 'h:'
+opts = 'h'
 longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod']
 # Default options
 pair = 'USDT_BTC'
@@ -21,7 +21,15 @@ try:
   args, values = getopt.getopt(argList, opts, longOpts)
   for arg, value in args:
     if arg in ('-h', '--help'):
-      print('--pair <pair> --period <period> --prod')
+      print(
+'''
+Arguments:
+--pair <pair> - currency pair
+--period <period> - chart period
+--tguser <telegram username> - user to call
+--prod - writes separate logs for production run
+'''
+          )
       sys.exit(0)
     elif arg in ('--pair'):
       pair = str(value)
