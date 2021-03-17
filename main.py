@@ -10,12 +10,13 @@ import traceback
 
 argList = sys.argv[1:]
 opts = 'h'
-longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod']
+longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod', 'call']
 # Default options
 pair = 'USDT_BTC'
 period = 300
 prod = False
 tg_username = None
+call = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -28,6 +29,7 @@ Arguments:
 --period <period> - chart period
 --tguser <telegram username> - user to call
 --prod - writes separate logs for production run
+--call - enable calling in telegram
 '''
           )
       sys.exit(0)
@@ -39,6 +41,8 @@ Arguments:
       prod = True
     elif arg in ('--tguser'):
       tg_username = str(value)
+    elif arg in ('--call'):
+      call = True
 except getopt.error as err:
   print(str(err))
   sys.exit(1)
@@ -173,16 +177,22 @@ def mainLoop(pair, period):
     log.debug(chart[-1])
     log.info(f'Candle pattern is {candleBeforeColor} = > {lastCandleColor}')
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
-      log.info('Time to buy, calling user in tg...')
-      tg_call(tg_username, f'Time to buy {pair}')
+      log.info('Time to buy')
+      if call:
+        log.info('Calling {tg_username}...')
+        tg_call(tg_username, f'Time to buy {pair}')
     elif lastCandleColor == 'red' and candleBeforeColor == 'green':
-      log.info('Time to move stop loss, calling user in tg...')
-      tg_call(tg_username, f'Move stop loss on {pair}')
+      log.info('Time to move stop loss')
+      if call:
+        log.info('Calling {tg_username}...')
+        tg_call(tg_username, f'Move stop loss on {pair}')
     else:
       log.info('Nothing to do...')
 
 if __name__ == '__main__':
-  log.info(f'Pair: {pair}, period: {period}, tg user: {tg_username}, production: {prod}')
+  log.info(f'Pair: {pair}, period: {period}')
+  log.info(f'Call: {call}, username: {tg_username}')
+  log.info(f'Production: {prod}')
   try:
     mainLoop(pair, period)
   except Exception as e:
