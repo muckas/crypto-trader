@@ -1,5 +1,6 @@
 import os
 import requests
+from requests.exceptions import Timeout
 import time
 import datetime
 from poloniex import Poloniex
@@ -10,13 +11,14 @@ import traceback
 
 argList = sys.argv[1:]
 opts = 'h'
-longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod', 'call']
+longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod', 'call', 'apitime']
 # Default options
 pair = 'USDT_BTC'
 period = 300
 prod = False
 tg_username = None
 call = False
+apitime = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -30,6 +32,7 @@ Arguments:
 --tguser <telegram username> - user to call
 --prod - writes separate logs for production run
 --call - enable calling in telegram
+--apitime - use ipgeolocation.io instead of system time
 '''
           )
       sys.exit(0)
@@ -43,6 +46,8 @@ Arguments:
       tg_username = str(value)
     elif arg in ('--call'):
       call = True
+    elif arg in ('--apitime'):
+      apitime = True
 except getopt.error as err:
   print(str(err))
   sys.exit(1)
@@ -95,13 +100,46 @@ except KeyError:
   polo = Poloniex()
   log.info('No POLO_KEY and POLO_SECRET environment variables, using public Poloniex api only')
 
+if apitime:
+  try:
+    time_api_key = os.environ['TIME_API']
+    responce = requests.get(f'https://api.ipgeolocation.io/timezone?apiKey={time_api_key}&tz=Europe/London', timeout=10)
+    responce = responce.json()
+  except KeyError as err:
+    log.error(f'No environment variable {err}, must be set to use --apitime, exiting...')
+    sys.exit(1)
+  except Timeout:
+    log.error('Request to ipgeolocation.io timed out')
+    sys.exit(1)
+  try:
+    unixTime = responce['date_time_unix']
+    log.info(f'Connected to ipgeolocation.io, current unix time: {unixTime}')
+  except KeyError:
+    log.error(responce['message'])
+    sys.exit(1)
+
+def getCurrentTime():
+  if apitime:
+    try:
+      responce = requests.get(f'https://api.ipgeolocation.io/timezone?apiKey={time_api_key}&tz=Europe/London', timeout=5)
+      responce = responce.json()
+      unixTime = responce['date_time_unix']
+      return unixTime
+    except KeyError:
+      log.warning(responce['message'])
+      log.warning('Fallback to system time')
+    except Timeout:
+      log.warning('Request to ipgeolocation.io timed out')
+      log.warning('Fallback to system time')
+  return time.time()
+
 def tg_call(user, text):
   url = f'http://api.callmebot.com/start.php?source=web&user={user}&text={text}&lang=en-IN-Standard-A&rpt=5'
   return requests.post(url)
 
 def getChartData(pair, period, start, end, lastCandleDate=None):
   if lastCandleDate:
-    end = time.time()
+    end = getCurrentTime()
     log.debug(f'Last candle date: {lastCandleDate}, {datetime.datetime.utcfromtimestamp(lastCandleDate)}')
   chart = []
   data = polo.returnChartData(pair, period, start, end)
@@ -154,7 +192,7 @@ def getHeikinAshi(pair, period, start, end, lastCandleDate=None):
   return chart
 
 def mainLoop(pair, period):
-  now = time.time()
+  now = getCurrentTime()
   chart = getHeikinAshi(pair, period, now - period * 1000, now)
   log.debug('Last five candles:')
   for candle in chart[-5:]:
@@ -162,7 +200,7 @@ def mainLoop(pair, period):
   lastCandleDate = chart[-1]['date']
   log.debug(f'Current candle date: {lastCandleDate}, {datetime.datetime.utcfromtimestamp(lastCandleDate)}')
   while True:
-    now = time.time()
+    now = getCurrentTime()
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
     log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle).strftime("%H:%M:%S")} until new candle...')
