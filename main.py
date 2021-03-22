@@ -8,6 +8,7 @@ import logging
 import getopt
 import sys
 import traceback
+import api
 
 argList = sys.argv[1:]
 opts = 'h'
