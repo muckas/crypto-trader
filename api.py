@@ -18,3 +18,9 @@ def getAllBalances(polo, total=False):
     return float(f'{totalBtc:.8f}')
   else:
     return balances
+
+def getTotalBalance(polo):
+  total_BTC = getAllBalances(polo, total=True)
+  USDT_BTC = getTicker(polo, 'USDT_BTC')
+  total_USDT = total_BTC * USDT_BTC
+  return total_USDT
