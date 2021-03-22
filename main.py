@@ -3,7 +3,7 @@ import requests
 from requests.exceptions import Timeout
 import time
 import datetime
-from poloniex import Poloniex
+from poloniex import Poloniex, PoloniexError
 import logging
 import getopt
 import sys
@@ -12,7 +12,10 @@ import api
 
 argList = sys.argv[1:]
 opts = 'h'
-longOpts = ['help', 'pair=', 'period=', 'tguser=', 'maxrisk=', 'maxposition=', 'prod', 'call', 'apitime']
+longOpts = ['help', 'pair=', 'period=', 'tguser=',
+            'maxrisk=', 'maxposition=',
+            'polokey=', 'polosecret=',
+            'prod', 'call', 'apitime']
 # Default options
 pair = 'USDT_BTC'
 period = 300
@@ -23,6 +26,8 @@ apitime = False
 private_api = False
 maxrisk = 0.05
 maxposition = False
+polokey = False
+polosecret = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -36,6 +41,8 @@ Arguments:
 --tguser=<telegram username> - user to call
 --maxrisk=<amount persent> - maximum persent risk of total account on one trade
 --maxposition=<amount of currency> - maximum position size
+--polokey=<key> - poloniex api key
+--polosecret=<secret> - poloniex api secret
 --prod - writes separate logs for production run
 --call - enable calling in telegram
 --apitime - use ipgeolocation.io instead of system time
@@ -57,6 +64,10 @@ Arguments:
         sys.exit(1)
     elif arg in ('--maxposition'):
       maxposition = float(value)
+    elif arg in ('--polokey'):
+      polokey = value
+    elif arg in ('--polosecret'):
+      polosecret = value
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
@@ -106,14 +117,24 @@ else:
 
 # Poloniex api setup
 try:
-  api_key = os.environ['POLO_KEY']
-  api_sercet = os.environ['POLO_SECRET']
-  polo = Poloniex(key=api_key, secret=api_sercet)
+  if polokey and polosecret:
+    api_key = polokey
+    api_secret = polosecret
+    log.info('Using Poloniex api keys from arguments')
+  else:
+    api_key = os.environ['POLO_KEY']
+    api_secret = os.environ['POLO_SECRET']
+    log.info('Using Poloniex api keys from environment variables')
+  polo = Poloniex(key=api_key, secret=api_secret)
   private_api = True
-  log.info(f'Logged to Poloniex with api keys from environment variables')
+  api.getAllBalances(polo, total=True)
+  log.info(f'Logged on to Poloniex private api')
 except KeyError:
   polo = Poloniex()
-  log.info('No POLO_KEY and POLO_SECRET environment variables, using public Poloniex api only')
+  log.info('No Poloniex api keys set, using public api only')
+except PoloniexError as err:
+  log.error(f'Poloniex: {err}')
+  sys.exit(1)
 
 # Api time setup
 if apitime:
