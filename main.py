@@ -12,7 +12,7 @@ import api
 
 argList = sys.argv[1:]
 opts = 'h'
-longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod', 'call', 'apitime']
+longOpts = ['help', 'pair=', 'period=', 'tguser=', 'maxrisk=', 'maxposition=', 'prod', 'call', 'apitime']
 # Default options
 pair = 'USDT_BTC'
 period = 300
@@ -21,6 +21,8 @@ tg_username = None
 call = False
 apitime = False
 private_api = False
+maxrisk = 0.05
+maxposition = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -29,9 +31,11 @@ try:
       print(
 '''
 Arguments:
---pair <pair> - currency pair
---period <period> - chart period
---tguser <telegram username> - user to call
+--pair=<pair> - currency pair
+--period=<period> - chart period
+--tguser=<telegram username> - user to call
+--maxrisk=<amount persent> - maximum persent risk of total account on one trade
+--maxposition=<amount of currency> - maximum position size
 --prod - writes separate logs for production run
 --call - enable calling in telegram
 --apitime - use ipgeolocation.io instead of system time
@@ -46,6 +50,13 @@ Arguments:
       prod = True
     elif arg in ('--tguser'):
       tg_username = str(value)
+    elif arg in ('--maxrisk'):
+      maxrisk = float(value) / 100
+      if maxrisk > 1 or maxrisk < 0.005:
+        print('--maxrisk must be between 0.005 and 1')
+        sys.exit(1)
+    elif arg in ('--maxposition'):
+      maxposition = float(value)
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
@@ -223,6 +234,21 @@ def mainLoop(pair, period):
     log.info(f'Candle pattern is {candleBeforeColor} = > {lastCandleColor}')
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
       log.info('Time to buy')
+      if private_api:
+        total_balance = api.getTotalBalance(polo)
+        candle_change = 1 - ( chart[-2]['low'] / chart[-2]['high'] )
+        maxloss = total_balance * maxrisk
+        available_balance = float(polo.returnBalances()[base])
+        position_size = min(maxloss / candle_change, available_balance)
+        if maxposition:
+          position_size = min(position_size, maxposition)
+        expected_risk = position_size * candle_change
+        expected_risk_persent = expected_risk / total_balance
+        position_size = f'{position_size:.8f}'
+        log.info(f'Candle risk: {candle_change * 100:.3f}%')
+        log.info(f'Available balance: {available_balance} {base}')
+        log.info(f'Position size: {position_size} {base}')
+        log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Time to buy {pair}')
@@ -235,10 +261,12 @@ def mainLoop(pair, period):
       log.info('Nothing to do...')
 
 if __name__ == '__main__':
+  log.info(f'Production: {prod}')
   log.info(f'Pair: {pair}, period: {period}')
   log.info(f'Call: {call}, username: {tg_username}')
   log.info(f'Poloniex private api: {private_api}')
-  log.info(f'Production: {prod}')
+  log.info(f'Max risk: {maxrisk*100}%')
+  log.info(f'Max position size: {maxposition}')
   try:
     mainLoop(pair, period)
   except Exception as e:
