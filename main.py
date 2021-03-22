@@ -19,6 +19,7 @@ prod = False
 tg_username = None
 call = False
 apitime = False
+private_api = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -53,7 +54,6 @@ except getopt.error as err:
   sys.exit(1)
 
 # Logger setup
-
 try:
   os.makedirs('logs')
   print('Created logs folder')
@@ -81,6 +81,7 @@ log.addHandler(stream)
 log.info('========================')
 log.info('Start')
 
+# TG username setup
 if tg_username:
   log.debug(f'Using tg username from command line parameter: {tg_username}')
 else:
@@ -91,15 +92,18 @@ else:
     log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
     sys.exit(1)
 
+# Poloniex api setup
 try:
   api_key = os.environ['POLO_KEY']
   api_sercet = os.environ['POLO_SECRET']
   polo = Poloniex(key=api_key, secret=api_sercet)
+  private_api = True
   log.info(f'Logged to Poloniex with api keys from environment variables')
 except KeyError:
   polo = Poloniex()
   log.info('No POLO_KEY and POLO_SECRET environment variables, using public Poloniex api only')
 
+# Api time setup
 if apitime:
   try:
     time_api_key = os.environ['TIME_API']
@@ -117,6 +121,8 @@ if apitime:
   except KeyError:
     log.error(responce['message'])
     sys.exit(1)
+
+# End of setup
 
 def getCurrentTime():
   if apitime:
@@ -230,6 +236,7 @@ def mainLoop(pair, period):
 if __name__ == '__main__':
   log.info(f'Pair: {pair}, period: {period}')
   log.info(f'Call: {call}, username: {tg_username}')
+  log.info(f'Poloniex private api: {private_api}')
   log.info(f'Production: {prod}')
   try:
     mainLoop(pair, period)
