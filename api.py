@@ -1,5 +1,11 @@
 from poloniex import Poloniex
 
+def getTicker(polo, pair=None):
+  ticker = polo.returnTicker()
+  if pair:
+    return float(ticker[pair]['last'])
+  return ticker
+
 def getAllBalances(polo, total=False):
   balances = polo.returnCompleteBalances()
   for currency in balances.copy():
