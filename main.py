@@ -3,15 +3,19 @@ import requests
 from requests.exceptions import Timeout
 import time
 import datetime
-from poloniex import Poloniex
+from poloniex import Poloniex, PoloniexError
 import logging
 import getopt
 import sys
 import traceback
+import api
 
 argList = sys.argv[1:]
 opts = 'h'
-longOpts = ['help', 'pair=', 'period=', 'tguser=', 'prod', 'call', 'apitime']
+longOpts = ['help', 'pair=', 'period=', 'tguser=',
+            'maxrisk=', 'maxposition=',
+            'polokey=', 'polosecret=',
+            'prod', 'call', 'apitime']
 # Default options
 pair = 'USDT_BTC'
 period = 300
@@ -19,6 +23,11 @@ prod = False
 tg_username = None
 call = False
 apitime = False
+private_api = False
+maxrisk = 0.05
+maxposition = False
+polokey = False
+polosecret = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -27,9 +36,13 @@ try:
       print(
 '''
 Arguments:
---pair <pair> - currency pair
---period <period> - chart period
---tguser <telegram username> - user to call
+--pair=<pair> - currency pair
+--period=<period> - chart period
+--tguser=<telegram username> - user to call
+--maxrisk=<amount persent> - maximum persent risk of total account on one trade
+--maxposition=<amount of currency> - maximum position size
+--polokey=<key> - poloniex api key
+--polosecret=<secret> - poloniex api secret
 --prod - writes separate logs for production run
 --call - enable calling in telegram
 --apitime - use ipgeolocation.io instead of system time
@@ -44,6 +57,17 @@ Arguments:
       prod = True
     elif arg in ('--tguser'):
       tg_username = str(value)
+    elif arg in ('--maxrisk'):
+      maxrisk = float(value) / 100
+      if maxrisk > 1 or maxrisk < 0.005:
+        print('--maxrisk must be between 0.005 and 1')
+        sys.exit(1)
+    elif arg in ('--maxposition'):
+      maxposition = float(value)
+    elif arg in ('--polokey'):
+      polokey = value
+    elif arg in ('--polosecret'):
+      polosecret = value
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
@@ -53,7 +77,6 @@ except getopt.error as err:
   sys.exit(1)
 
 # Logger setup
-
 try:
   os.makedirs('logs')
   print('Created logs folder')
@@ -81,6 +104,7 @@ log.addHandler(stream)
 log.info('========================')
 log.info('Start')
 
+# TG username setup
 if tg_username:
   log.debug(f'Using tg username from command line parameter: {tg_username}')
 else:
@@ -91,15 +115,28 @@ else:
     log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
     sys.exit(1)
 
+# Poloniex api setup
 try:
-  api_key = os.environ['POLO_KEY']
-  api_sercet = os.environ['POLO_SECRET']
-  polo = Poloniex(key=api_key, secret=api_sercet)
-  log.info(f'Logged to Poloniex with api keys from environment variables')
+  if polokey and polosecret:
+    api_key = polokey
+    api_secret = polosecret
+    log.info('Using Poloniex api keys from arguments')
+  else:
+    api_key = os.environ['POLO_KEY']
+    api_secret = os.environ['POLO_SECRET']
+    log.info('Using Poloniex api keys from environment variables')
+  polo = Poloniex(key=api_key, secret=api_secret)
+  private_api = True
+  api.getAllBalances(polo, total=True)
+  log.info(f'Logged on to Poloniex private api')
 except KeyError:
   polo = Poloniex()
-  log.info('No POLO_KEY and POLO_SECRET environment variables, using public Poloniex api only')
+  log.info('No Poloniex api keys set, using public api only')
+except PoloniexError as err:
+  log.error(f'Poloniex: {err}')
+  sys.exit(1)
 
+# Api time setup
 if apitime:
   try:
     time_api_key = os.environ['TIME_API']
@@ -117,6 +154,8 @@ if apitime:
   except KeyError:
     log.error(responce['message'])
     sys.exit(1)
+
+# End of setup
 
 def getCurrentTime():
   if apitime:
@@ -216,6 +255,21 @@ def mainLoop(pair, period):
     log.info(f'Candle pattern is {candleBeforeColor} = > {lastCandleColor}')
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
       log.info('Time to buy')
+      if private_api:
+        total_balance = api.getTotalBalance(polo)
+        candle_change = 1 - ( chart[-2]['low'] / chart[-2]['high'] )
+        maxloss = total_balance * maxrisk
+        available_balance = float(polo.returnBalances()[base])
+        position_size = min(maxloss / candle_change, available_balance)
+        if maxposition:
+          position_size = min(position_size, maxposition)
+        expected_risk = position_size * candle_change
+        expected_risk_persent = expected_risk / total_balance
+        position_size = f'{position_size:.8f}'
+        log.info(f'Candle risk: {candle_change * 100:.3f}%')
+        log.info(f'Available balance: {available_balance} {base}')
+        log.info(f'Position size: {position_size} {base}')
+        log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Time to buy {pair}')
@@ -228,9 +282,12 @@ def mainLoop(pair, period):
       log.info('Nothing to do...')
 
 if __name__ == '__main__':
+  log.info(f'Production: {prod}')
   log.info(f'Pair: {pair}, period: {period}')
   log.info(f'Call: {call}, username: {tg_username}')
-  log.info(f'Production: {prod}')
+  log.info(f'Poloniex private api: {private_api}')
+  log.info(f'Max risk: {maxrisk*100}%')
+  log.info(f'Max position size: {maxposition}')
   try:
     mainLoop(pair, period)
   except Exception as e:
