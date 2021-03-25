@@ -15,7 +15,8 @@ opts = 'h'
 longOpts = ['help', 'pair=', 'period=', 'tguser=',
             'maxrisk=', 'maxposition=',
             'polokey=', 'polosecret=',
-            'prod', 'call', 'apitime']
+            'tick=',
+            'prod', 'call', 'apitime', 'trade']
 # Default options
 pair = 'USDT_BTC'
 period = 300
@@ -28,6 +29,8 @@ maxrisk = 0.05
 maxposition = False
 polokey = False
 polosecret = False
+tick = 5
+trade = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -36,16 +39,18 @@ try:
       print(
 '''
 Arguments:
---pair=<pair> - currency pair
---period=<period> - chart period
---tguser=<telegram username> - user to call
---maxrisk=<amount persent> - maximum persent risk of total account on one trade
---maxposition=<amount of currency> - maximum position size
---polokey=<key> - poloniex api key
---polosecret=<secret> - poloniex api secret
+--pair <pair> - currency pair
+--period <period> - chart period
+--tguser <telegram username> - user to call
+--maxrisk <amount persent> - maximum persent risk of total account on one trade
+--maxposition <amount of currency> - maximum position size
+--polokey <key> - poloniex api key
+--polosecret <secret> - poloniex api secret
+--tick <time in seconds> - price check period in seconds
 --prod - writes separate logs for production run
 --call - enable calling in telegram
 --apitime - use ipgeolocation.io instead of system time
+--trade - enable automated trading
 '''
           )
       sys.exit(0)
@@ -68,10 +73,14 @@ Arguments:
       polokey = value
     elif arg in ('--polosecret'):
       polosecret = value
+    elif arg in ('--tick'):
+      tick = float(value)
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
       apitime = True
+    elif arg in ('--trade'):
+      trade = True
 except getopt.error as err:
   print(str(err))
   sys.exit(1)
@@ -210,7 +219,9 @@ def getHeikinAshi(pair, period, start, end, lastCandleDate=None):
   chart.append(data[0])
   for candle in data:
     open = ( chart[-1]['open'] + chart[-1]['close'] ) / 2
+    open = float(f'{open:.8f}')
     close = ( candle['open'] + candle['high'] + candle['low'] + candle['close'] ) / 4
+    close = float(f'{close:.8f}')
     high = max(candle['high'], candle['low'], open, close)
     low = min(candle['high'], candle['low'], open, close)
     if open > close:
@@ -231,6 +242,13 @@ def getHeikinAshi(pair, period, start, end, lastCandleDate=None):
   return chart
 
 def mainLoop(pair, period):
+  base, coin = pair.split('_')
+  position_open = False
+  position_size = False
+  position_entry = False
+  position_stopLoss = False
+  expected_risk_persent = False
+  expected_risk = False
   now = getCurrentTime()
   chart = getHeikinAshi(pair, period, now - period * 1000, now)
   log.debug('Last five candles:')
@@ -238,12 +256,74 @@ def mainLoop(pair, period):
     log.debug(candle)
   lastCandleDate = chart[-1]['date']
   log.debug(f'Current candle date: {lastCandleDate}, {datetime.datetime.utcfromtimestamp(lastCandleDate)}')
+  if trade:
+    currentCoinBalance = polo.returnBalances()[coin] 
+    if currentCoinBalance:
+      log.info(f'Found available balance of {currentCoinBalance} {coin}, calculating stop loss...')
+      n = -1
+      while not position_stopLoss:
+        lastCandleColor = chart[n-1]['color']
+        candleBeforeColor = chart[n-2]['color']
+        if candleBeforeColor != lastCandleColor:
+          position_stopLoss = float(chart[n-1]['low'])
+          log.info(f'Stop loss set to {position_stopLoss}')
+          position_open = True
+          log.debug(f'position_open: {position_open}')
+        n -= 1
   while True:
     now = getCurrentTime()
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
     log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle).strftime("%H:%M:%S")} until new candle...')
-    time.sleep(untilNextCandle)
+    nextCandleTime = chart[-1]['date'] + period
+    log.debug(f'Next candle date: {nextCandleTime}')
+    # Tick check
+    while getCurrentTime() < nextCandleTime:
+      time.sleep(tick)
+      if trade:
+        currentPrice = api.getTicker(polo, pair)
+        log.debug(f'Current price: {currentPrice}')
+        if position_entry and currentPrice > position_entry:
+          log.info(f'Entry price of {position_entry} hit, buying {coin}...')
+          coinBefore = float(polo.returnBalances()[coin])
+          baseBefore = float(polo.returnBalances()[base])
+          result = api.buy(polo, pair, market=True, total=position_size)
+          log.debug(result)
+          coinAfter = float(polo.returnBalances()[coin])
+          baseAfter = float(polo.returnBalances()[base])
+          coinAmount = coinAfter - coinBefore
+          baseAmount = f'{baseBefore - baseAfter:.8f}'
+          log.info(f'Bought {coinAmount} {coin} for {baseAmount} {base}')
+          position_open = True
+          log.debug(f'position_open: {position_open}')
+          position_entry = False
+          log.debug('Position entry removed')
+        if position_open and currentPrice < position_stopLoss:
+          log.info(f'Stop loss of {position_stopLoss} hit, selling {coin}...')
+          coinBefore = float(polo.returnBalances()[coin])
+          baseBefore = float(polo.returnBalances()[base])
+          result = api.sell(polo, pair, market=True, all=True)
+          log.debug(result)
+          coinAfter = float(polo.returnBalances()[coin])
+          baseAfter = float(polo.returnBalances()[base])
+          coinAmount = coinBefore - coinAfter
+          baseAmount = f'{baseAfter - baseBefore:.8f}'
+          log.info(f'Sold {coinAmount} {coin} for {baseAmount} {base}')
+          position_stopLoss = False
+          log.debug('Position stop loss removed')
+          position_entry = False
+          log.debug('Position entry removed')
+          position_open = False
+          log.debug(f'Position open: {position_open}')
+        if position_stopLoss and not position_open and currentPrice < position_stopLoss:
+          log.info('Entry not hit, position cancelled')
+          position_stopLoss = False
+          log.debug('Position stop loss removed')
+          position_entry = False
+          log.debug('Position entry removed')
+          position_open = False
+          log.debug(f'position_open: {position_open}')
+
     lastCandleDate = chart[-1]['date']
     log.info('Getting new candle...')
     chart = getHeikinAshi(pair, period, now - period * 1000, now, chart[-1]['date'])
@@ -257,6 +337,8 @@ def mainLoop(pair, period):
       log.info('Time to buy')
       if private_api:
         total_balance = api.getTotalBalance(polo)
+        position_entry = chart[-2]['high']
+        position_stopLoss = chart[-2]['low']
         candle_change = 1 - ( chart[-2]['low'] / chart[-2]['high'] )
         maxloss = total_balance * maxrisk
         available_balance = float(polo.returnBalances()[base])
@@ -265,9 +347,11 @@ def mainLoop(pair, period):
           position_size = min(position_size, maxposition)
         expected_risk = position_size * candle_change
         expected_risk_persent = expected_risk / total_balance
-        position_size = f'{position_size:.8f}'
+        position_size = float(f'{position_size:.8f}')
         log.info(f'Candle risk: {candle_change * 100:.3f}%')
         log.info(f'Available balance: {available_balance} {base}')
+        log.info(f'Position entry: {position_entry}')
+        log.info(f'Position stop loss: {position_stopLoss}')
         log.info(f'Position size: {position_size} {base}')
         log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
       if call:
@@ -275,9 +359,15 @@ def mainLoop(pair, period):
         tg_call(tg_username, f'Time to buy {pair}')
     elif lastCandleColor == 'red' and candleBeforeColor == 'green':
       log.info('Time to move stop loss')
+      if private_api and position_open:
+        position_stopLoss = chart[-2]['low']
+        log.info(f'Position stop loss moved to {position_stopLoss}')
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Move stop loss on {pair}')
+    elif lastCandleColor == 'red' and position_open:
+      position_stopLoss = chart[-2]['low']
+      log.info(f'Position stop loss moved to {position_stopLoss}')
     else:
       log.info('Nothing to do...')
 
@@ -288,6 +378,8 @@ if __name__ == '__main__':
   log.info(f'Poloniex private api: {private_api}')
   log.info(f'Max risk: {maxrisk*100}%')
   log.info(f'Max position size: {maxposition}')
+  log.info(f'Tick period: {tick} seconds')
+  log.info(f'Automated trading: {trade}')
   try:
     mainLoop(pair, period)
   except Exception as e:
