@@ -38,14 +38,14 @@ try:
       print(
 '''
 Arguments:
---pair=<pair> - currency pair
---period=<period> - chart period
---tguser=<telegram username> - user to call
---maxrisk=<amount persent> - maximum persent risk of total account on one trade
---maxposition=<amount of currency> - maximum position size
---polokey=<key> - poloniex api key
---polosecret=<secret> - poloniex api secret
---tick=<time in seconds> - price check period in seconds
+--pair <pair> - currency pair
+--period <period> - chart period
+--tguser <telegram username> - user to call
+--maxrisk <amount persent> - maximum persent risk of total account on one trade
+--maxposition <amount of currency> - maximum position size
+--polokey <key> - poloniex api key
+--polosecret <secret> - poloniex api secret
+--tick <time in seconds> - price check period in seconds
 --prod - writes separate logs for production run
 --call - enable calling in telegram
 --apitime - use ipgeolocation.io instead of system time
