@@ -210,7 +210,9 @@ def getHeikinAshi(pair, period, start, end, lastCandleDate=None):
   chart.append(data[0])
   for candle in data:
     open = ( chart[-1]['open'] + chart[-1]['close'] ) / 2
+    open = float(f'{open:.8f}')
     close = ( candle['open'] + candle['high'] + candle['low'] + candle['close'] ) / 4
+    close = float(f'{close:.8f}')
     high = max(candle['high'], candle['low'], open, close)
     low = min(candle['high'], candle['low'], open, close)
     if open > close:
