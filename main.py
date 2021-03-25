@@ -15,6 +15,7 @@ opts = 'h'
 longOpts = ['help', 'pair=', 'period=', 'tguser=',
             'maxrisk=', 'maxposition=',
             'polokey=', 'polosecret=',
+            'tick=',
             'prod', 'call', 'apitime']
 # Default options
 pair = 'USDT_BTC'
@@ -28,6 +29,7 @@ maxrisk = 0.05
 maxposition = False
 polokey = False
 polosecret = False
+tick = 5
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -43,6 +45,7 @@ Arguments:
 --maxposition=<amount of currency> - maximum position size
 --polokey=<key> - poloniex api key
 --polosecret=<secret> - poloniex api secret
+--tick=<time in seconds> - price check period in seconds
 --prod - writes separate logs for production run
 --call - enable calling in telegram
 --apitime - use ipgeolocation.io instead of system time
@@ -68,6 +71,8 @@ Arguments:
       polokey = value
     elif arg in ('--polosecret'):
       polosecret = value
+    elif arg in ('--tick'):
+      tick = value
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
@@ -290,6 +295,7 @@ if __name__ == '__main__':
   log.info(f'Poloniex private api: {private_api}')
   log.info(f'Max risk: {maxrisk*100}%')
   log.info(f'Max position size: {maxposition}')
+  log.info(f'Tick period: {tick} seconds')
   try:
     mainLoop(pair, period)
   except Exception as e:
