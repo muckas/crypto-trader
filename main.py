@@ -256,6 +256,20 @@ def mainLoop(pair, period):
     log.debug(candle)
   lastCandleDate = chart[-1]['date']
   log.debug(f'Current candle date: {lastCandleDate}, {datetime.datetime.utcfromtimestamp(lastCandleDate)}')
+  if trade:
+    currentCoinBalance = polo.returnBalances()[coin] 
+    if currentCoinBalance:
+      log.info(f'Found available balance of {currentCoinBalance} {coin}, calculating stop loss...')
+      n = -1
+      while not position_stopLoss:
+        lastCandleColor = chart[n-1]['color']
+        candleBeforeColor = chart[n-2]['color']
+        if candleBeforeColor != lastCandleColor:
+          position_stopLoss = float(chart[n-1]['low'])
+          log.info(f'Stop loss set to {position_stopLoss}')
+          position_open = True
+          log.debug(f'position_open: {position_open}')
+        n -= 1
   while True:
     now = getCurrentTime()
     fromLastCandle = now % period
