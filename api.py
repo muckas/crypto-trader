@@ -42,3 +42,16 @@ def buy(polo, pair, rate=False, amount=False, market=False, total=False):
     amount = f'{amount:.8f}'
     return polo.buy(pair, rate, amount)
   return 0
+
+def sell(polo, pair, rate=False, amount=False, market=False, all=False):
+  base, coin = pair.split('_')
+  if market and amount:
+    rate = getTicker(polo, pair) * 0.98
+    rate = f'{rate:.8f}'
+  if market and all:
+    amount = polo.returnBalances()[coin]
+    rate = getTicker(polo, pair) * 0.98
+  if all and not market:
+    amount = polo.returnBalances()[coin]
+  return polo.sell(pair, rate, amount)
+  return 0
