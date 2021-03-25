@@ -24,3 +24,21 @@ def getTotalBalance(polo):
   USDT_BTC = getTicker(polo, 'USDT_BTC')
   total_USDT = total_BTC * USDT_BTC
   return total_USDT
+
+def buy(polo, pair, rate=False, amount=False, market=False, total=False):
+  if market and amount:
+    rate = getTicker(polo, pair) * 1.02
+    rate = f'{rate:.8f}'
+    return polo.buy(pair, rate, amount)
+  if market and total:
+    rate = getTicker(polo, pair)
+    amount = total / rate
+    rate *= 1.02
+    amount = f'{amount:.8f}'
+    rate = f'{rate:.8f}'
+    return polo.buy(pair, rate, amount)
+  if total and not market:
+    amount = total / rate
+    amount = f'{amount:.8f}'
+    return polo.buy(pair, rate, amount)
+  return 0
