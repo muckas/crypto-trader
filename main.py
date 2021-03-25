@@ -270,6 +270,7 @@ def mainLoop(pair, period):
     if lastCandleColor == 'green' and candleBeforeColor == 'red':
       log.info('Time to buy')
       if private_api:
+        base, coin = pair.split('_')
         total_balance = api.getTotalBalance(polo)
         candle_change = 1 - ( chart[-2]['low'] / chart[-2]['high'] )
         maxloss = total_balance * maxrisk
