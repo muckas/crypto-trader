@@ -72,7 +72,7 @@ Arguments:
     elif arg in ('--polosecret'):
       polosecret = value
     elif arg in ('--tick'):
-      tick = value
+      tick = float(value)
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
@@ -250,7 +250,14 @@ def mainLoop(pair, period):
     fromLastCandle = now % period
     untilNextCandle = period - fromLastCandle
     log.info(f'Waiting {datetime.datetime.utcfromtimestamp(untilNextCandle).strftime("%H:%M:%S")} until new candle...')
-    time.sleep(untilNextCandle)
+    nextCandleTime = chart[-1]['date'] + period
+    log.debug(f'Next candle time: {nextCandleTime}')
+
+    while getCurrentTime() < nextCandleTime:
+      time.sleep(tick)
+      currentPrice = api.getTicker(polo, pair)
+      log.debug(f'Current price of {pair}: {currentPrice}')
+
     lastCandleDate = chart[-1]['date']
     log.info('Getting new candle...')
     chart = getHeikinAshi(pair, period, now - period * 1000, now, chart[-1]['date'])
