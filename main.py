@@ -31,6 +31,9 @@ polokey = False
 polosecret = False
 tick = 5
 trade = False
+tguserid = False
+tgtoken = False
+notify = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -78,12 +81,18 @@ Arguments:
       polosecret = value
     elif arg in ('--tick'):
       tick = float(value)
+    elif arg in ('--tguserid'):
+      tguserid = value
+    elif arg in ('--tgtoken'):
+      tgtoken = value
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
       apitime = True
     elif arg in ('--trade'):
       trade = True
+    elif arg in ('--notify'):
+      notify = True
 except getopt.error as err:
   print(str(err))
   sys.exit(1)
@@ -126,6 +135,31 @@ else:
   except KeyError as err:
     log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
     sys.exit(1)
+
+# TG notification bot setup
+if notify:
+  if tgtoken:
+    pass
+  else:
+    try:
+      tgtoken = os.environ['TG_TOKEN']
+    except KeyError as err:
+      log.error(f'{err} environment variable or --tgtoken should be set up to use --notify')
+      sys.exit(1)
+  result = requests.get(f'https://api.telegram.org/bot{tgtoken}/getMe')
+  result = result.json()
+  if result['ok']:
+    log.info('Connected to telegram bot api')
+  else:
+    log.error('Invalid telegram token')
+    sys,exit(1)
+  if tguserid:
+    pass
+  else:
+    try:
+      tguserid = os.environ['TG_USERID']
+    except KeyError as err:
+      log.error(f'{err} environment variable or --tguserid should be set up to use --notify')
 
 # Poloniex api setup
 try:
@@ -187,6 +221,13 @@ def getCurrentTime():
 def tg_call(user, text):
   url = f'http://api.callmebot.com/start.php?source=web&user={user}&text={text}&lang=en-IN-Standard-A&rpt=5'
   return requests.post(url)
+
+def tg_message(text):
+  if not notify:
+    return 0
+  text = f'{datetime.datetime.now()}\n{pair}-{period}\n{text}'
+  url = f'https://api.telegram.org/bot{tgtoken}/sendMessage?chat_id={tguserid}&text={text}'
+  return requests.get(url)
 
 def getChartData(pair, period, start, end, lastCandleDate=None):
   if lastCandleDate:
@@ -260,7 +301,7 @@ def mainLoop(pair, period):
   lastCandleDate = chart[-1]['date']
   log.debug(f'Current candle date: {lastCandleDate}, {datetime.datetime.utcfromtimestamp(lastCandleDate)}')
   if trade:
-    currentCoinBalance = polo.returnBalances()[coin] 
+    currentCoinBalance = float(polo.returnBalances()[coin])
     if currentCoinBalance:
       log.info(f'Found available balance of {currentCoinBalance} {coin}, calculating stop loss...')
       n = -1
@@ -270,6 +311,7 @@ def mainLoop(pair, period):
         if candleBeforeColor != lastCandleColor:
           position_stopLoss = float(chart[n-1]['low'])
           log.info(f'Stop loss set to {position_stopLoss}')
+          tg_message(f'Stop loss set to {position_stopLoss}')
           position_open = True
           log.debug(f'position_open: {position_open}')
         n -= 1
@@ -282,7 +324,6 @@ def mainLoop(pair, period):
     log.debug(f'Next candle date: {nextCandleTime}')
     # Tick check
     while getCurrentTime() < nextCandleTime:
-      time.sleep(tick)
       if trade:
         currentPrice = api.getTicker(polo, pair)
         log.debug(f'Current price: {currentPrice}')
@@ -294,9 +335,14 @@ def mainLoop(pair, period):
           log.debug(result)
           coinAfter = float(polo.returnBalances()[coin])
           baseAfter = float(polo.returnBalances()[base])
-          coinAmount = coinAfter - coinBefore
+          coinAmount = f'{coinBefore - coinAfter:.8f}'
           baseAmount = f'{baseBefore - baseAfter:.8f}'
-          log.info(f'Bought {coinAmount} {coin} for {baseAmount} {base}')
+          log.info(f'Bought {coinAmount} {coin} for {baseAmount} {base} at {currentPrice}')
+          tg_message(f'''Entry price hit
+{pair} Buy
+Rate: {currentPrice}
+Amount: {coinAmount} {coin}
+Total:{baseAmount} {base}''')
           position_open = True
           log.debug(f'position_open: {position_open}')
           position_entry = False
@@ -309,9 +355,14 @@ def mainLoop(pair, period):
           log.debug(result)
           coinAfter = float(polo.returnBalances()[coin])
           baseAfter = float(polo.returnBalances()[base])
-          coinAmount = coinBefore - coinAfter
+          coinAmount = f'{coinBefore - coinAfter:.8f}'
           baseAmount = f'{baseAfter - baseBefore:.8f}'
-          log.info(f'Sold {coinAmount} {coin} for {baseAmount} {base}')
+          log.info(f'Sold {coinAmount} {coin} for {baseAmount} {base} at {currentPrice}')
+          tg_message(f'''Stop loss hit
+{pair} Sell
+Rate: {currentPrice}
+Amount: {coinAmount} {coin}
+Total: {baseAmount} {base}''')
           position_stopLoss = False
           log.debug('Position stop loss removed')
           position_entry = False
@@ -320,12 +371,14 @@ def mainLoop(pair, period):
           log.debug(f'Position open: {position_open}')
         if position_stopLoss and not position_open and currentPrice < position_stopLoss:
           log.info('Entry not hit, position cancelled')
+          tg_message('Entry not hit, position cancelled')
           position_stopLoss = False
           log.debug('Position stop loss removed')
           position_entry = False
           log.debug('Position entry removed')
           position_open = False
           log.debug(f'position_open: {position_open}')
+      time.sleep(tick)
 
     lastCandleDate = chart[-1]['date']
     log.info('Getting new candle...')
@@ -357,6 +410,14 @@ def mainLoop(pair, period):
         log.info(f'Position stop loss: {position_stopLoss}')
         log.info(f'Position size: {position_size} {base}')
         log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
+        tg_message(f'''New position set up
+Candle risk: {candle_change * 100:.3f}%
+Available balance: {available_balance} {base}
+Position entry: {position_entry}
+Position stop loss: {position_stopLoss}
+Position size: {position_size} {base}
+Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}
+''')
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Time to buy {pair}')
@@ -365,12 +426,14 @@ def mainLoop(pair, period):
       if private_api and position_open:
         position_stopLoss = chart[-2]['low']
         log.info(f'Position stop loss moved to {position_stopLoss}')
+        tg_message(f'Position stop loss moved to {position_stopLoss}')
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Move stop loss on {pair}')
     elif lastCandleColor == 'red' and position_open:
       position_stopLoss = chart[-2]['low']
       log.info(f'Position stop loss moved to {position_stopLoss}')
+      tg_message(f'Position stop loss moved to {position_stopLoss}')
     else:
       log.info('Nothing to do...')
 
@@ -383,7 +446,22 @@ if __name__ == '__main__':
   log.info(f'Max position size: {maxposition}')
   log.info(f'Tick period: {tick} seconds')
   log.info(f'Automated trading: {trade}')
+  log.info(f'Telegram notifications: {notify}, user id: {tguserid}')
+  tg_message(
+f'''Crypto Trader started
+Production: {prod}
+Pair: {pair}, period: {period}
+Call: {call}, username: {tg_username}
+Poloniex private api: {private_api}
+Max risk: {maxrisk*100}%
+Max position size: {maxposition}
+Tick period: {tick} seconds
+Automated trading: {trade}
+''')
   try:
     mainLoop(pair, period)
   except Exception as e:
+    tg_message(f'''Crypto Trader closed with an exception
+{e}
+See logs for traceback''')
     log.error((traceback.format_exc()))
