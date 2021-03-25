@@ -365,6 +365,9 @@ def mainLoop(pair, period):
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Move stop loss on {pair}')
+    elif lastCandleColor == 'red' and position_open:
+      position_stopLoss = chart[-2]['low']
+      log.info(f'Position stop loss moved to {position_stopLoss}')
     else:
       log.info('Nothing to do...')
 
