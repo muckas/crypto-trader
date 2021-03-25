@@ -15,8 +15,8 @@ opts = 'h'
 longOpts = ['help', 'pair=', 'period=', 'tguser=',
             'maxrisk=', 'maxposition=',
             'polokey=', 'polosecret=',
-            'tick=',
-            'prod', 'call', 'apitime', 'trade']
+            'tick=', 'tguserid=', 'tgtoken=',
+            'prod', 'call', 'apitime', 'trade', 'notify']
 # Default options
 pair = 'USDT_BTC'
 period = 300
@@ -47,10 +47,13 @@ Arguments:
 --polokey <key> - poloniex api key
 --polosecret <secret> - poloniex api secret
 --tick <time in seconds> - price check period in seconds
+--tguserid <user id> - telegram user id to send notifications to
+--tgtoken <token> - telegram bot token
 --prod - writes separate logs for production run
 --call - enable calling in telegram
 --apitime - use ipgeolocation.io instead of system time
 --trade - enable automated trading
+--notify - enable telegram notifications
 '''
           )
       sys.exit(0)
