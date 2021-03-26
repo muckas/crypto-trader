@@ -53,7 +53,7 @@ Arguments:
 --tguserid <user id> - telegram user id to send notifications to
 --tgtoken <token> - telegram bot token
 --prod - writes separate logs for production run
---call - enable calling in telegram
+--call - enable calling in telegram with callmebot.com
 --apitime - use ipgeolocation.io instead of system time
 --trade - enable automated trading
 --notify - enable telegram notifications
@@ -61,7 +61,7 @@ Arguments:
           )
       sys.exit(0)
     elif arg in ('--pair'):
-      pair = str(value)
+      pair = str(value.upper())
     elif arg in ('--period'):
       period = int(value)
     elif arg in ('--prod'):
