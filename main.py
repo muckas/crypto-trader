@@ -16,6 +16,7 @@ longOpts = ['help', 'pair=', 'period=', 'tguser=',
             'maxrisk=', 'maxposition=',
             'polokey=', 'polosecret=',
             'tick=', 'tguserid=', 'tgtoken=',
+            'loglevel=',
             'prod', 'call', 'apitime', 'trade', 'notify']
 # Default options
 pair = 'USDT_BTC'
@@ -34,6 +35,7 @@ trade = False
 tguserid = False
 tgtoken = False
 notify = False
+loglevel = logging.DEBUG
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -42,14 +44,15 @@ try:
       print(
 '''
 Arguments:
---pair <pair> - currency pair
---period <period> - chart period (5m, 15m, 30m, 2h, 4h, 1d)
---tguser <telegram username> - user to call
---maxrisk <amount persent> - maximum persent risk of total account on one trade
+--loglevel <level> - log level to display in terminal, default: DEBUG
+--pair <pair> - currency pair, default: USDT_BTC
+--period <period> - chart period (5m, 15m, 30m, 2h, 4h, 1d), default: 5m
+--maxrisk <amount persent> - maximum persent risk of total account on one trade, default: 5
 --maxposition <amount of currency> - maximum position size
 --polokey <key> - poloniex api key
 --polosecret <secret> - poloniex api secret
 --tick <time in seconds> - price check period in seconds
+--tguser <telegram username> - user to call
 --tguserid <user id> - telegram user id to send notifications to
 --tgtoken <token> - telegram bot token
 --prod - writes separate logs for production run
@@ -99,6 +102,14 @@ Arguments:
       tguserid = value
     elif arg in ('--tgtoken'):
       tgtoken = value
+    elif arg in ('--loglevel'):
+      names = {
+          'INFO':logging.INFO,
+          'DEBUG':logging.DEBUG,
+          'WARNING':logging.WARNING,
+          'ERROR':logging.ERROR
+          }
+      loglevel = names[value.upper()]
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
@@ -131,7 +142,7 @@ file.setFormatter(fileformat)
 log.addHandler(file)
 
 stream = logging.StreamHandler()
-stream.setLevel(logging.DEBUG)
+stream.setLevel(loglevel)
 streamformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
 stream.setFormatter(fileformat)
 log.addHandler(stream)
