@@ -16,6 +16,7 @@ longOpts = ['help', 'pair=', 'period=', 'tguser=',
             'maxrisk=', 'maxposition=',
             'polokey=', 'polosecret=',
             'tick=', 'tguserid=', 'tgtoken=',
+            'loglevel=',
             'prod', 'call', 'apitime', 'trade', 'notify']
 # Default options
 pair = 'USDT_BTC'
@@ -34,6 +35,7 @@ trade = False
 tguserid = False
 tgtoken = False
 notify = False
+loglevel = logging.DEBUG
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -42,18 +44,19 @@ try:
       print(
 '''
 Arguments:
---pair <pair> - currency pair
---period <period> - chart period
---tguser <telegram username> - user to call
---maxrisk <amount persent> - maximum persent risk of total account on one trade
+--loglevel <level> - log level to display in terminal, default: DEBUG
+--pair <pair> - currency pair, default: USDT_BTC
+--period <period> - chart period (5m, 15m, 30m, 2h, 4h, 1d), default: 5m
+--maxrisk <amount persent> - maximum persent risk of total account on one trade, default: 5
 --maxposition <amount of currency> - maximum position size
 --polokey <key> - poloniex api key
 --polosecret <secret> - poloniex api secret
 --tick <time in seconds> - price check period in seconds
+--tguser <telegram username> - user to call
 --tguserid <user id> - telegram user id to send notifications to
 --tgtoken <token> - telegram bot token
 --prod - writes separate logs for production run
---call - enable calling in telegram
+--call - enable calling in telegram with callmebot.com
 --apitime - use ipgeolocation.io instead of system time
 --trade - enable automated trading
 --notify - enable telegram notifications
@@ -61,9 +64,23 @@ Arguments:
           )
       sys.exit(0)
     elif arg in ('--pair'):
-      pair = str(value)
+      pair = str(value.upper())
     elif arg in ('--period'):
-      period = int(value)
+      names = {
+          '5m':300,
+          '15m':900,
+          '30m':1800,
+          '2h':7200,
+          '4h':14400,
+          '1d':86400
+          }
+      try:
+        period = int(value)
+      except ValueError:
+        if value not in names.keys():
+          print(f'Invalid period "{value}", periods are 5m, 15m, 30m, 2h, 4h, 1d')
+          sys.exit(1)
+        period = names[value]
     elif arg in ('--prod'):
       prod = True
     elif arg in ('--tguser'):
@@ -85,6 +102,14 @@ Arguments:
       tguserid = value
     elif arg in ('--tgtoken'):
       tgtoken = value
+    elif arg in ('--loglevel'):
+      names = {
+          'INFO':logging.INFO,
+          'DEBUG':logging.DEBUG,
+          'WARNING':logging.WARNING,
+          'ERROR':logging.ERROR
+          }
+      loglevel = names[value.upper()]
     elif arg in ('--call'):
       call = True
     elif arg in ('--apitime'):
@@ -104,8 +129,11 @@ try:
 except FileExistsError:
   pass
 
-log = logging.getLogger()
+log = logging.getLogger('main')
 log.setLevel(logging.DEBUG)
+
+reqlog = logging.getLogger('urllib3')
+reqlog.setLevel(logging.DEBUG)
 
 filename = datetime.datetime.now().strftime('%Y-%m-%d') + '-log'
 if prod:
@@ -116,25 +144,33 @@ fileformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
 file.setFormatter(fileformat)
 log.addHandler(file)
 
+reqfile = logging.FileHandler(os.path.join('logs', filename + '-requests'))
+reqfile.setLevel(logging.DEBUG)
+fileformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
+reqfile.setFormatter(fileformat)
+reqlog.addHandler(reqfile)
+
 stream = logging.StreamHandler()
-stream.setLevel(logging.DEBUG)
+stream.setLevel(loglevel)
 streamformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
 stream.setFormatter(fileformat)
 log.addHandler(stream)
+reqlog.addHandler(stream)
 
 log.info('========================')
 log.info('Start')
 
 # TG username setup
-if tg_username:
-  log.debug(f'Using tg username from command line parameter: {tg_username}')
-else:
-  try:
-    tg_username = os.environ['TG_USER']
-    log.debug(f'Using tg username from environment variable: {tg_username}')
-  except KeyError as err:
-    log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
-    sys.exit(1)
+if call:
+  if tg_username:
+    log.debug(f'Using tg username from command line parameter: {tg_username}')
+  else:
+    try:
+      tg_username = os.environ['TG_USER']
+      log.debug(f'Using tg username from environment variable: {tg_username}')
+    except KeyError as err:
+      log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
+      sys.exit(1)
 
 # TG notification bot setup
 if notify:
@@ -326,7 +362,6 @@ def mainLoop(pair, period):
     while getCurrentTime() < nextCandleTime:
       if trade:
         currentPrice = api.getTicker(polo, pair)
-        log.debug(f'Current price: {currentPrice}')
         if position_entry and currentPrice > position_entry:
           log.info(f'Entry price of {position_entry} hit, buying {coin}...')
           coinBefore = float(polo.returnBalances()[coin])
