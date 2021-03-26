@@ -43,7 +43,7 @@ try:
 '''
 Arguments:
 --pair <pair> - currency pair
---period <period> - chart period
+--period <period> - chart period (5m, 15m, 30m, 2h, 4h, 1d)
 --tguser <telegram username> - user to call
 --maxrisk <amount persent> - maximum persent risk of total account on one trade
 --maxposition <amount of currency> - maximum position size
@@ -63,7 +63,21 @@ Arguments:
     elif arg in ('--pair'):
       pair = str(value.upper())
     elif arg in ('--period'):
-      period = int(value)
+      names = {
+          '5m':300,
+          '15m':900,
+          '30m':1800,
+          '2h':7200,
+          '4h':14400,
+          '1d':86400
+          }
+      try:
+        period = int(value)
+      except ValueError:
+        if value not in names.keys():
+          print(f'Invalid period "{value}", periods are 5m, 15m, 30m, 2h, 4h, 1d')
+          sys.exit(1)
+        period = names[value]
     elif arg in ('--prod'):
       prod = True
     elif arg in ('--tguser'):
