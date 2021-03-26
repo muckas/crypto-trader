@@ -126,15 +126,16 @@ log.info('========================')
 log.info('Start')
 
 # TG username setup
-if tg_username:
-  log.debug(f'Using tg username from command line parameter: {tg_username}')
-else:
-  try:
-    tg_username = os.environ['TG_USER']
-    log.debug(f'Using tg username from environment variable: {tg_username}')
-  except KeyError as err:
-    log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
-    sys.exit(1)
+if call:
+  if tg_username:
+    log.debug(f'Using tg username from command line parameter: {tg_username}')
+  else:
+    try:
+      tg_username = os.environ['TG_USER']
+      log.debug(f'Using tg username from environment variable: {tg_username}')
+    except KeyError as err:
+      log.error(f'--tguser parameter not passed, no environment vatiable {err}, exiting...')
+      sys.exit(1)
 
 # TG notification bot setup
 if notify:
