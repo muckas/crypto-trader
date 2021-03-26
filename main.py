@@ -129,8 +129,11 @@ try:
 except FileExistsError:
   pass
 
-log = logging.getLogger()
+log = logging.getLogger('main')
 log.setLevel(logging.DEBUG)
+
+reqlog = logging.getLogger('urllib3')
+reqlog.setLevel(logging.DEBUG)
 
 filename = datetime.datetime.now().strftime('%Y-%m-%d') + '-log'
 if prod:
@@ -141,11 +144,18 @@ fileformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
 file.setFormatter(fileformat)
 log.addHandler(file)
 
+reqfile = logging.FileHandler(os.path.join('logs', filename + '-requests'))
+reqfile.setLevel(logging.DEBUG)
+fileformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
+reqfile.setFormatter(fileformat)
+reqlog.addHandler(reqfile)
+
 stream = logging.StreamHandler()
 stream.setLevel(loglevel)
 streamformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
 stream.setFormatter(fileformat)
 log.addHandler(stream)
+reqlog.addHandler(stream)
 
 log.info('========================')
 log.info('Start')
@@ -352,7 +362,6 @@ def mainLoop(pair, period):
     while getCurrentTime() < nextCandleTime:
       if trade:
         currentPrice = api.getTicker(polo, pair)
-        log.debug(f'Current price: {currentPrice}')
         if position_entry and currentPrice > position_entry:
           log.info(f'Entry price of {position_entry} hit, buying {coin}...')
           coinBefore = float(polo.returnBalances()[coin])
