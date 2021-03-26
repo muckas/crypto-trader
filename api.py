@@ -32,8 +32,8 @@ def buy(polo, pair, rate=False, amount=False, market=False, total=False):
     return polo.buy(pair, rate, amount)
   if market and total:
     rate = getTicker(polo, pair)
-    amount = total / rate
     rate *= 1.02
+    amount = total / rate
     amount = f'{amount:.8f}'
     rate = f'{rate:.8f}'
     return polo.buy(pair, rate, amount)
