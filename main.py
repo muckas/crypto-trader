@@ -445,7 +445,7 @@ Total: {baseAmount} {base}''')
         log.info(f'Position stop loss: {position_stopLoss}')
         log.info(f'Position size: {position_size} {base}')
         log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
-        tg_message(f'''New position set up
+        tg_message(f'''New position setup
 Candle risk: {candle_change * 100:.3f}%
 Available balance: {available_balance} {base}
 Position entry: {position_entry}
