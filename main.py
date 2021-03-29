@@ -370,7 +370,7 @@ def mainLoop(pair, period):
           log.debug(result)
           coinAfter = float(polo.returnBalances()[coin])
           baseAfter = float(polo.returnBalances()[base])
-          coinAmount = f'{coinBefore - coinAfter:.8f}'
+          coinAmount = f'{coinAfter - coinBefore:.8f}'
           baseAmount = f'{baseBefore - baseAfter:.8f}'
           log.info(f'Bought {coinAmount} {coin} for {baseAmount} {base} at {currentPrice}')
           tg_message(f'''Entry price hit
