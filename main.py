@@ -193,9 +193,11 @@ if notify:
     pass
   else:
     try:
+      print('Hello')
       tguserid = os.environ['TG_USERID']
     except KeyError as err:
       log.error(f'{err} environment variable or --tguserid should be set up to use --notify')
+      sys.exit(1)
 
 # Poloniex api setup
 try:
