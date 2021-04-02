@@ -17,7 +17,8 @@ longOpts = ['help', 'pair=', 'period=', 'tguser=',
             'polokey=', 'polosecret=',
             'tick=', 'tguserid=', 'tgtoken=',
             'loglevel=',
-            'prod', 'call', 'apitime', 'trade', 'notify']
+            'prod', 'call', 'apitime', 'trade', 'notify', 'commands']
+tgupdateid = 0
 # Default options
 pair = 'USDT_BTC'
 period = 300
@@ -36,6 +37,7 @@ tguserid = False
 tgtoken = False
 notify = False
 loglevel = logging.DEBUG
+commands = False
 
 try:
   args, values = getopt.getopt(argList, opts, longOpts)
@@ -60,6 +62,7 @@ Arguments:
 --apitime - use ipgeolocation.io instead of system time
 --trade - enable automated trading
 --notify - enable telegram notifications
+--commands - enable telegram commands
 '''
           )
       sys.exit(0)
@@ -118,6 +121,8 @@ Arguments:
       trade = True
     elif arg in ('--notify'):
       notify = True
+    elif arg in ('--commands'):
+      commands = True
 except getopt.error as err:
   print(str(err))
   sys.exit(1)
@@ -267,6 +272,34 @@ def tg_message(text):
   url = f'https://api.telegram.org/bot{tgtoken}/sendMessage?chat_id={tguserid}&text={text}'
   return requests.get(url)
 
+def tg_getUpdates(updateid):
+  url = f'https://api.telegram.org/bot{tgtoken}/getUpdates?offset={updateid}'
+  response = requests.get(url)
+  response = response.json()
+  return response
+
+def tg_handleUpdates(updateid):
+  updates = tg_getUpdates(updateid)
+  for update in updates['result']:
+    updateid = update['update_id'] + 1
+    message = update['message']
+    chatid = message['chat']['id']
+    if chatid == int(tguserid):
+      if message['text'] == '/balance':
+        tg_sendBalance()
+  return updateid
+
+def tg_sendBalance():
+  msg = 'Poloniex balance'
+  msg += '\nTotal: ' + str(api.getTotalBalance(polo)) + ' USDT'
+  balances = api.getAllBalances(polo)
+  print(balances)
+  for coin in balances:
+    coinBalance = float(balances[coin]['available']) + float(balances[coin]['onOrders'])
+    usdtValue = float(balances[coin]['btcValue']) * api.getTicker(polo, 'USDT_BTC')
+    msg += f'\n{coin}: {coinBalance}  ~  {usdtValue:.8f} USDT'
+  tg_message(msg)
+
 def getChartData(pair, period, start, end, lastCandleDate=None):
   if lastCandleDate:
     end = getCurrentTime()
@@ -324,6 +357,7 @@ def getHeikinAshi(pair, period, start, end, lastCandleDate=None):
   return chart
 
 def mainLoop(pair, period):
+  global tgupdateid
   base, coin = pair.split('_')
   position_open = False
   position_size = False
@@ -395,6 +429,8 @@ Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}
     log.debug(f'Next candle date: {nextCandleTime}')
     # Tick check
     while getCurrentTime() < nextCandleTime:
+      if commands:
+        tgupdateid = tg_handleUpdates(tgupdateid)
       if trade:
         currentPrice = api.getTicker(polo, pair)
         if position_entry and currentPrice > position_entry:
