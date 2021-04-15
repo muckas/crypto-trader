@@ -280,14 +280,18 @@ def tg_getUpdates(updateid):
 
 def tg_handleUpdates(updateid):
   updates = tg_getUpdates(updateid)
-  for update in updates['result']:
-    updateid = update['update_id'] + 1
-    message = update['message']
-    chatid = message['chat']['id']
-    if chatid == int(tguserid):
-      if message['text'] == '/balance':
-        tg_sendBalance()
-  return updateid
+  try:
+    for update in updates['result']:
+      updateid = update['update_id'] + 1
+      message = update['message']
+      chatid = message['chat']['id']
+      if chatid == int(tguserid):
+        if message['text'] == '/balance':
+          tg_sendBalance()
+    return updateid
+  except KeyError as e:
+    log.warning((traceback.format_exc()))
+    
 
 def tg_sendBalance():
   msg = 'Poloniex balance'
