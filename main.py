@@ -183,7 +183,7 @@ if notify:
     pass
   else:
     try:
-      tgtoken = os.environ['TG_TOKEN']
+      tgtoken = os.environ['TG_TOKEN_TEST']
     except KeyError as err:
       log.error(f'{err} environment variable or --tgtoken should be set up to use --notify')
       sys.exit(1)
@@ -280,14 +280,19 @@ def tg_getUpdates(updateid):
 
 def tg_handleUpdates(updateid):
   updates = tg_getUpdates(updateid)
-  for update in updates['result']:
-    updateid = update['update_id'] + 1
-    message = update['message']
-    chatid = message['chat']['id']
-    if chatid == int(tguserid):
-      if message['text'] == '/balance':
-        tg_sendBalance()
-  return updateid
+  reqlog.debug(updates)
+  try:
+    for update in updates['result']:
+      updateid = update['update_id'] + 1
+      message = update['message']
+      chatid = message['chat']['id']
+      if chatid == int(tguserid):
+        if message['text'] == '/balance':
+          tg_sendBalance()
+    return updateid
+  except KeyError as e:
+    log.warning((traceback.format_exc()))
+    
 
 def tg_sendBalance():
   msg = 'Poloniex balance'
