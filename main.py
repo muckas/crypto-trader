@@ -270,6 +270,7 @@ def tg_message(text):
     return 0
   text = f'{datetime.datetime.now()}\n{pair}-{period}\n{text}'
   url = f'https://api.telegram.org/bot{tgtoken}/sendMessage?chat_id={tguserid}&text={text}'
+  log.debug(f'Sending message to user_id {tguserid}:\n{text}')
   return requests.get(url)
 
 def tg_getUpdates(updateid):
@@ -286,6 +287,7 @@ def tg_handleUpdates(updateid):
       updateid = update['update_id'] + 1
       message = update['message']
       chatid = message['chat']['id']
+      log.debug(f'Received from chat_id {chatid}:\n{message["text"]}')
       if chatid == int(tguserid):
         if message['text'] == '/balance':
           tg_sendBalance()
