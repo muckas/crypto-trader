@@ -183,7 +183,7 @@ if notify:
     pass
   else:
     try:
-      tgtoken = os.environ['TG_TOKEN']
+      tgtoken = os.environ['TG_TOKEN_TEST']
     except KeyError as err:
       log.error(f'{err} environment variable or --tgtoken should be set up to use --notify')
       sys.exit(1)
@@ -280,6 +280,7 @@ def tg_getUpdates(updateid):
 
 def tg_handleUpdates(updateid):
   updates = tg_getUpdates(updateid)
+  reqlog.debug(updates)
   try:
     for update in updates['result']:
       updateid = update['update_id'] + 1
