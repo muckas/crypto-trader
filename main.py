@@ -506,24 +506,25 @@ Total: {baseAmount} {base}''')
       log.info('Time to buy')
       if private_api:
         total_balance = api.getTotalBalance(polo)
-        position_entry = chart[-2]['high']
-        position_stopLoss = chart[-2]['low']
-        candle_change = 1 - ( chart[-2]['low'] / chart[-2]['high'] )
-        maxloss = total_balance * maxrisk
         available_balance = float(polo.returnBalances()[base])
-        position_size = min(maxloss / candle_change, available_balance)
-        if maxposition:
-          position_size = min(position_size, maxposition)
-        expected_risk = position_size * candle_change
-        expected_risk_persent = expected_risk / total_balance
-        position_size = float(f'{position_size:.8f}')
-        log.info(f'Candle risk: {candle_change * 100:.3f}%')
-        log.info(f'Available balance: {available_balance} {base}')
-        log.info(f'Position entry: {position_entry}')
-        log.info(f'Position stop loss: {position_stopLoss}')
-        log.info(f'Position size: {position_size} {base}')
-        log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
-        tg_message(f'''New position setup
+        if available_balance > 2:
+          position_entry = chart[-2]['high']
+          position_stopLoss = chart[-2]['low']
+          candle_change = 1 - ( chart[-2]['low'] / chart[-2]['high'] )
+          maxloss = total_balance * maxrisk
+          position_size = min(maxloss / candle_change, available_balance)
+          if maxposition:
+            position_size = min(position_size, maxposition)
+          expected_risk = position_size * candle_change
+          expected_risk_persent = expected_risk / total_balance
+          position_size = float(f'{position_size:.8f}')
+          log.info(f'Candle risk: {candle_change * 100:.3f}%')
+          log.info(f'Available balance: {available_balance} {base}')
+          log.info(f'Position entry: {position_entry}')
+          log.info(f'Position stop loss: {position_stopLoss}')
+          log.info(f'Position size: {position_size} {base}')
+          log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
+          tg_message(f'''New position setup
 Candle risk: {candle_change * 100:.3f}%
 Available balance: {available_balance} {base}
 Position entry: {position_entry}
