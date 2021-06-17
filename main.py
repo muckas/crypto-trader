@@ -129,10 +129,11 @@ except getopt.error as err:
 
 # Logger setup
 try:
-  os.makedirs('logs')
+  os.makedirs(f'logs/{pair}')
   print('Created logs folder')
 except FileExistsError:
   pass
+
 
 log = logging.getLogger('main')
 log.setLevel(logging.DEBUG)
@@ -140,10 +141,10 @@ log.setLevel(logging.DEBUG)
 reqlog = logging.getLogger('urllib3')
 reqlog.setLevel(logging.DEBUG)
 
-filename = datetime.datetime.now().strftime('%Y-%m-%d') + '-log'
+filename = datetime.datetime.now().strftime('%Y-%m-%d') + f'-{pair}{period}-log'
 if prod:
   filename += '-prod'
-file = logging.FileHandler(os.path.join('logs', filename))
+file = logging.FileHandler(os.path.join('logs', pair, filename))
 file.setLevel(logging.DEBUG)
 fileformat = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
 file.setFormatter(fileformat)
