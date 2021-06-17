@@ -390,7 +390,7 @@ def mainLoop(pair, period):
         if candleBeforeColor != lastCandleColor:
           position_stopLoss = float(chart[n-1]['low'])
           log.info(f'Stop loss set to {position_stopLoss}')
-          tg_message(f'Stop loss set to {position_stopLoss}')
+          # tg_message(f'Stop loss set to {position_stopLoss}')
           position_open = True
           log.debug(f'position_open: {position_open}')
         n -= 1
@@ -419,14 +419,14 @@ def mainLoop(pair, period):
           log.info(f'Position stop loss: {position_stopLoss}')
           log.info(f'Position size: {position_size} {base}')
           log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
-          tg_message(f'''New position setup
-Candle risk: {candle_change * 100:.3f}%
-Available balance: {available_balance} {base}
-Position entry: {position_entry}
-Position stop loss: {position_stopLoss}
-Position size: {position_size} {base}
-Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}
-''')
+#           tg_message(f'''New position setup
+# Candle risk: {candle_change * 100:.3f}%
+# Available balance: {available_balance} {base}
+# Position entry: {position_entry}
+# Position stop loss: {position_stopLoss}
+# Position size: {position_size} {base}
+# Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}
+# ''')
   while True:
     now = getCurrentTime()
     fromLastCandle = now % period
@@ -484,7 +484,7 @@ Total: {baseAmount} {base}''')
           log.debug(f'Position open: {position_open}')
         if position_stopLoss and not position_open and currentPrice < position_stopLoss:
           log.info('Entry not hit, position cancelled')
-          tg_message('Entry not hit, position cancelled')
+          # tg_message('Entry not hit, position cancelled')
           position_stopLoss = False
           log.debug('Position stop loss removed')
           position_entry = False
@@ -524,14 +524,14 @@ Total: {baseAmount} {base}''')
           log.info(f'Position stop loss: {position_stopLoss}')
           log.info(f'Position size: {position_size} {base}')
           log.info(f'Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}')
-          tg_message(f'''New position setup
-Candle risk: {candle_change * 100:.3f}%
-Available balance: {available_balance} {base}
-Position entry: {position_entry}
-Position stop loss: {position_stopLoss}
-Position size: {position_size} {base}
-Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}
-''')
+#           tg_message(f'''New position setup
+# Candle risk: {candle_change * 100:.3f}%
+# Available balance: {available_balance} {base}
+# Position entry: {position_entry}
+# Position stop loss: {position_stopLoss}
+# Position size: {position_size} {base}
+# Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}
+# ''')
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Time to buy {pair}')
@@ -540,14 +540,14 @@ Expected risk: {expected_risk_persent*100:.2f}%, {expected_risk:.8f} {base}
       if private_api and position_open:
         position_stopLoss = chart[-2]['low']
         log.info(f'Position stop loss moved to {position_stopLoss}')
-        tg_message(f'Position stop loss moved to {position_stopLoss}')
+        # tg_message(f'Position stop loss moved to {position_stopLoss}')
       if call:
         log.info('Calling {tg_username}...')
         tg_call(tg_username, f'Move stop loss on {pair}')
     elif lastCandleColor == 'red' and position_open:
       position_stopLoss = chart[-2]['low']
       log.info(f'Position stop loss moved to {position_stopLoss}')
-      tg_message(f'Position stop loss moved to {position_stopLoss}')
+      # tg_message(f'Position stop loss moved to {position_stopLoss}')
     else:
       log.info('Nothing to do...')
 
